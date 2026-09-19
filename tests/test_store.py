@@ -1,8 +1,15 @@
 from researcher.store import (
-    blob_known, branch_delta, claims_by_id, load_claims, record_branch_file, record_head, save_claims,
+    blob_known,
+    branch_delta,
+    claims_by_id,
+    load_claims,
+    record_branch_file,
+    record_head,
+    save_claims,
 )
 
-from .conftest import make_claim, seed as index
+from .conftest import make_claim
+from .conftest import seed as index
 
 
 def test_load_claims_returns_only_claims_reachable_from_the_branch(db):

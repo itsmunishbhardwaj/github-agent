@@ -3,9 +3,10 @@ from pathlib import Path
 import git
 import pytest
 
-from researcher.models import Claim
-from .gitutil import commit_file, run
+from researcher.models import Claim, Conflict, PRDraft, ReconcileOutput
 from researcher.store import open_db, record_branch_file, record_head, save_claims
+
+from .gitutil import commit_file, run
 
 
 def make_claim(id: str, text: str = "a finding", path: str = "a.md", line: int = 1, author: str = "alice", commit: str = "c0ffee") -> Claim:
@@ -31,6 +32,7 @@ def research_repo(tmp_path) -> Path:
     run(tmp_path, "git", "init", "-q", "--bare", "-b", "main", str(tmp_path / "origin.git"))
     work = tmp_path / "work"
     run(tmp_path, "git", "clone", "-q", str(tmp_path / "origin.git"), str(work))
+    commit_file(work, ".gitignore", ".env\n.researcher/state.db\n", "gitignore", author="Carol")
     commit_file(work, "notes.md", "# Notes\nBaseline finding one.\n", "base", author="Carol")
     run(work, "git", "push", "-q", "-u", "origin", "main")
     run(work, "git", "checkout", "-q", "-b", "bob/research")
@@ -58,3 +60,14 @@ def db_at():
         (root / ".researcher").mkdir(exist_ok=True)
         return open_db(root)
     return make
+
+
+def make_output(conflicts=(), recommendation="discuss", title="add results") -> ReconcileOutput:
+    return ReconcileOutput(
+        conflicts=list(conflicts), recommendation=recommendation,
+        pr=PRDraft(title=title, body_md="body", consent_questions=["ok?"]),
+    )
+
+
+def make_conflict(ids, kind="contradiction", severity="blocking") -> Conflict:
+    return Conflict(kind=kind, severity=severity, claim_ids=list(ids), explanation="they disagree", suggested_resolution="rerun")

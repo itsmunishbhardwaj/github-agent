@@ -4,7 +4,7 @@ from researcher import index as index_mod
 from researcher.models import Claim
 from researcher.store import branch_delta, load_claims
 
-from .gitutil import commit_file, run
+from .gitutil import commit_file
 
 BRANCHES = ["alice/research", "main", "bob/research"]
 

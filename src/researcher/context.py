@@ -1,11 +1,13 @@
 import sqlite3
+import tomllib
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from pathlib import Path
 
 import git
+from dotenv import load_dotenv
 
-if TYPE_CHECKING:
-    from .github import GitHubClient
+from .github import GitHubClient
+from .store import open_db
 
 
 @dataclass
@@ -24,6 +26,15 @@ class Config:
 @dataclass
 class Ctx:
     repo: git.Repo
-    gh: "GitHubClient"
+    gh: GitHubClient
     db: sqlite3.Connection
     cfg: Config
+
+
+def load_ctx() -> Ctx:
+    repo = git.Repo(search_parent_directories=True)
+    root = Path(repo.working_dir)
+    load_dotenv(root / ".env")
+    raw = tomllib.loads((root / ".researcher" / "config.toml").read_text())
+    cfg = Config(main=raw["main"], repo=raw["repo"], members=raw["members"])
+    return Ctx(repo=repo, gh=GitHubClient.connect(cfg.repo), db=open_db(root), cfg=cfg)

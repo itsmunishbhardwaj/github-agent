@@ -1,21 +1,12 @@
 import pytest
 
 from researcher import reconcile as rc
-from researcher.models import BranchDelta, Conflict, PRDraft, ReconcileInput, ReconcileOutput
+from researcher.models import BranchDelta, ReconcileInput, ReconcileOutput
 
 from .conftest import make_claim, seed
+from .conftest import make_conflict as conflict
+from .conftest import make_output as out
 from .fakes import FakeClaude
-
-
-def out(conflicts=(), recommendation="discuss", title="add results"):
-    return ReconcileOutput(
-        conflicts=list(conflicts), recommendation=recommendation,
-        pr=PRDraft(title=title, body_md="body", consent_questions=["ok?"]),
-    )
-
-
-def conflict(ids, kind="contradiction", severity="blocking"):
-    return Conflict(kind=kind, severity=severity, claim_ids=list(ids), explanation="they disagree", suggested_resolution="rerun")
 
 
 def inp():

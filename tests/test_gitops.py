@@ -3,7 +3,7 @@ import pytest
 
 from researcher.gitops import blame_lines, dirty_paths, file_history, revert_commit, sidecar_for
 
-from .gitutil import commit_file, run
+from .gitutil import commit_file
 
 
 def test_dirty_paths_lists_modified_and_untracked_files(research_repo):
