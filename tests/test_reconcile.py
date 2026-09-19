@@ -1,11 +1,10 @@
-from types import SimpleNamespace
-
 import pytest
 
 from researcher import reconcile as rc
 from researcher.models import BranchDelta, Conflict, PRDraft, ReconcileInput, ReconcileOutput
 
 from .conftest import make_claim, seed
+from .fakes import FakeClaude
 
 
 def out(conflicts=(), recommendation="discuss", title="add results"):
@@ -17,19 +16,6 @@ def out(conflicts=(), recommendation="discuss", title="add results"):
 
 def conflict(ids, kind="contradiction", severity="blocking"):
     return Conflict(kind=kind, severity=severity, claim_ids=list(ids), explanation="they disagree", suggested_resolution="rerun")
-
-
-class FakeClaude:
-    """Scripted stand-in for the network boundary: one ReconcileOutput per messages.parse call."""
-
-    def __init__(self, *outputs):
-        self.outputs, self.calls = list(outputs), []
-        self.messages = SimpleNamespace(parse=self._parse)
-
-    def _parse(self, **kwargs):
-        self.calls.append(kwargs)
-        o = self.outputs.pop(0)
-        return SimpleNamespace(parsed_output=o, content=[SimpleNamespace(type="text", text=o.model_dump_json())])
 
 
 def inp():
