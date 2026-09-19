@@ -1,5 +1,7 @@
 # researcher: plan
 
+**Status: thin slice implemented on `feat/thin-slice` (68 tests). `src/` is authoritative; code blocks below are the original design and differ where noted in Decisions.**
+
 GitHub agent. Git + GitHub are the deterministic system; Claude senses, plans, acts, observes, reflects, repeats on top of it. Wrapper, not a new destination: collaboration stays on GitHub.
 
 ## 0. Decisions
@@ -27,6 +29,8 @@ GitHub agent. Git + GitHub are the deterministic system; Claude senses, plans, a
 | Statuses vs checks | Commit statuses. Check Runs need a GitHub App | delegated (adjusts "checks") |
 | GitHub Secrets | Not readable from a local process. Shared key = `.env` / secret manager. Actions support deferred | delegated (adjusts "GitHub secrets") |
 | Branching | One long-lived branch per researcher; feature sub-branches out of scope for MVP | user |
+| Delta basis | Branch deltas are against the merge-base, indexed as `<branch>@base`. First draft compared to main's head and would report claims merged after the fork as "removed" | derived (fixes plan bug) |
+| Attribution | Claim author/commit come from `git blame` at the indexed commit, not the tip commit | derived |
 | Success criteria | Provisional, derived from description; user unsure. Revisit after first end-to-end run | derived |
 | Deadline | None | user |
 
@@ -1052,17 +1056,17 @@ refs.yaml                   paper URLs; fetched text snapshotted under .research
 
 Branch first: `git init`, `git checkout -b feat/scaffold`; one PR per item group; conventional commits.
 
-- [ ] Scaffold: `pyproject.toml` (py>=3.11; anthropic, pydantic, typer, GitPython, PyGithub, "markitdown[pdf,docx]", pathspec, python-dotenv, PyYAML; dev: pytest, ruff), `src/researcher/`, `.gitignore`
-- [ ] `models.py`, `schema.sql`, `store.py` + tests against in-memory SQLite (FTS5 pre-pass)
-- [ ] `gitops.py`: blame via sidecar, history, revert + tests on a temp repo
-- [ ] `extract.py`: md, pdf, docx, drawio, mermaid, image; `.researcherignore`
-- [ ] `llm.py`, claim extraction, `index.py` (blob-keyed, idempotent)
-- [ ] `reconcile.py` + golden fixtures + `eval_reconcile.py`; record first precision/recall
+- [x] Scaffold: `pyproject.toml` (py>=3.11; anthropic, pydantic, typer, GitPython, PyGithub, "markitdown[pdf,docx]", pathspec, python-dotenv, PyYAML; dev: pytest, ruff), `src/researcher/`, `.gitignore`
+- [x] `models.py`, `schema.sql`, `store.py` + tests against in-memory SQLite (FTS5 pre-pass)
+- [x] `gitops.py`: blame via sidecar, history, revert + tests on a temp repo
+- [ ] `extract.py`: md/txt/mermaid + `.researcherignore` DONE; pdf, docx, drawio, image, sidecar generation, paper URLs TODO
+- [x] `llm.py`, claim extraction, `index.py` (blob-keyed, idempotent)
+- [ ] `reconcile.py` DONE + live test written (`pytest -m live`, needs key); golden fixtures + eval TODO + `eval_reconcile.py`; record first precision/recall
 - [ ] `policy.py` + table-driven tests (force push denied, main denied, merge asks)
-- [ ] `github.py` (consent from latest per-reviewer state, statuses) + tests with stubbed PyGithub
+- [x] `github.py` (consent from latest per-reviewer state, statuses) + tests with stubbed PyGithub
 - [ ] `loop.py`: sense, plan, act, observe, reflect; tests with fake LLM + temp repo
-- [ ] `render.py` PR comment
-- [ ] `cli.py`: init (incl. branch-protection setup/instructions), sync, pr, merge, watch, status, history, blame, revert
+- [x] `render.py` PR comment
+- [ ] `cli.py`: init, reconcile, pr, history, blame, revert DONE; sync, merge, watch, status TODO. Original list: init (incl. branch-protection setup/instructions), sync, pr, merge, watch, status, history, blame, revert
 - [ ] End-to-end on a scratch private GitHub repo with two accounts: seeded contradiction, consent, merge, revert, blame
 - [ ] Revisit success criteria with user after the end-to-end run
 - [ ] README: install, `.env`, `.researcherignore`, branch protection
