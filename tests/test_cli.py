@@ -1,9 +1,11 @@
 import git
 import pytest
+import typer
 from typer.testing import CliRunner
 
 from github_agent import cli
 from github_agent import index as index_mod
+from github_agent.loop import Entry
 from github_agent.models import Claim
 
 from .conftest import make_conflict, make_output
@@ -104,3 +106,54 @@ def test_init_writes_config_ignore_file_and_gitignore_entries_and_is_not_rerunna
     again = runner.invoke(cli.app, args)
     assert again.exit_code == 1 and "already initialised" in again.output
     assert (fresh / ".gitignore").read_text().splitlines().count(".env") == 1
+
+
+def test_confirm_shows_the_draft_before_asking_when_opening_a_pr(wired, monkeypatch):
+    wired.draft = make_output([make_conflict(["notes.md:3", "b.md:1"])], title="add thermal results")
+    shown = []
+    monkeypatch.setattr(cli, "_show", lambda draft, claims: shown.append(draft))
+    monkeypatch.setattr(typer, "confirm", lambda msg: True)
+    assert cli._confirm(cli.Action(kind="open_pr", detail="", reason="ask for consent"), wired) is True
+    assert shown == [wired.draft]
+
+
+def test_confirm_does_not_show_a_draft_for_other_action_kinds(wired, monkeypatch):
+    shown = []
+    monkeypatch.setattr(cli, "_show", lambda draft, claims: shown.append(draft))
+    monkeypatch.setattr(typer, "confirm", lambda msg: True)
+    cli._confirm(cli.Action(kind="push", detail="", reason="share work"), wired)
+    assert shown == []
+
+
+def test_sync_prints_each_journal_entry_and_uses_a_stay_synced_goal(wired, monkeypatch):
+    entries = [
+        Entry(step=0, action=cli.Action(kind="fetch", detail="", reason="stay current"), verdict="auto", ok=True, observation="fetched"),
+        Entry(step=0, action=cli.Action(kind="push", detail="", reason="share work"), verdict="ask", ok=False, observation="declined by user"),
+    ]
+    seen = {}
+
+    def fake_run_loop(ctx, goal, confirm, max_steps):
+        seen.update(goal=goal, confirm=confirm, max_steps=max_steps)
+        return entries
+
+    monkeypatch.setattr(cli, "run_loop", fake_run_loop)
+    r = runner.invoke(cli.app, ["sync"])
+    assert r.exit_code == 0
+    assert "[auto] fetch: fetched" in r.output and "[ask] push: declined by user" in r.output
+    assert "rebased" in seen["goal"] and seen["confirm"] is cli._confirm and seen["max_steps"] == 6
+
+
+def test_merge_uses_a_consent_goal_and_a_custom_max_steps(wired, monkeypatch):
+    seen = {}
+    monkeypatch.setattr(cli, "run_loop", lambda ctx, goal, confirm, max_steps: seen.update(goal=goal, max_steps=max_steps) or [])
+    r = runner.invoke(cli.app, ["merge", "--max-steps", "2"])
+    assert r.exit_code == 0
+    assert "approved" in seen["goal"] and seen["max_steps"] == 2
+
+
+def test_watch_delegates_to_watch_loop_with_the_given_interval(wired, monkeypatch):
+    seen = {}
+    monkeypatch.setattr(cli, "watch_loop", lambda ctx, interval, confirm: seen.update(interval=interval, confirm=confirm))
+    r = runner.invoke(cli.app, ["watch", "--interval", "5"])
+    assert r.exit_code == 0 and "watching every 5s" in r.output
+    assert seen["interval"] == 5 and seen["confirm"] is cli._confirm

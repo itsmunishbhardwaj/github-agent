@@ -4,10 +4,12 @@ from pathlib import Path
 import git
 import typer
 
-from .context import load_ctx
+from .context import Ctx, load_ctx
 from .gitops import blame_lines, dirty_paths, file_history, revert_commit
 from .index import index_branches
+from .loop import run_loop, watch_loop
 from .models import Claim, ReconcileOutput
+from .policy import Action
 from .reconcile import build_input, reconcile_branches
 from .render import render_conflict_comment
 from .store import claims_by_id
@@ -93,6 +95,37 @@ def pr() -> None:
     ctx.gh.comment(number, render_conflict_comment(draft, claims_by_id(ctx.db)))
     ctx.gh.set_status(ctx.repo.head.commit.hexsha, "pending", "Awaiting collaborator consent")
     typer.echo(f"opened PR #{number}")
+
+
+def _confirm(action: Action, ctx: Ctx) -> bool:
+    if action.kind == "open_pr" and ctx.draft:
+        _show(ctx.draft, claims_by_id(ctx.db))
+    label = f": {action.detail}" if action.detail else ""
+    return typer.confirm(f"{action.kind}{label}\n  why: {action.reason}\nProceed?")
+
+
+@app.command()
+def sync(max_steps: int = 6) -> None:
+    """Agent loop: keep my branch committed and rebased, report what changed. Pushing still asks."""
+    ctx = load_ctx()
+    goal = "Keep my branch committed and rebased on main; report collaborator changes and any PR review events."
+    for e in run_loop(ctx, goal, _confirm, max_steps=max_steps):
+        typer.echo(f"[{e.verdict}] {e.action.kind}: {e.observation}")
+
+
+@app.command()
+def merge(max_steps: int = 6) -> None:
+    """Agent loop: merge my open PR if, and only if, the collaborator has approved it."""
+    ctx = load_ctx()
+    for e in run_loop(ctx, "Merge my open PR if and only if the collaborator has approved it.", _confirm, max_steps=max_steps):
+        typer.echo(f"[{e.verdict}] {e.action.kind}: {e.observation}")
+
+
+@app.command()
+def watch(interval: int = 60) -> None:
+    """Poll git and GitHub every INTERVAL seconds; run the agent loop whenever something changes."""
+    typer.echo(f"watching every {interval}s (ctrl-c to stop)")
+    watch_loop(load_ctx(), interval, _confirm)
 
 
 @app.command()

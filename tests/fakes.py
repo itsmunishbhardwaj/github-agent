@@ -65,17 +65,28 @@ class FakeRepo:
 
 
 class FakeGH:
-    """Records what the CLI asks GitHub to do."""
+    """Records what the CLI/loop asks GitHub to do."""
 
     def __init__(self):
         self.calls = []
+        self._prs = {}  # branch -> PRState-like SimpleNamespace
+        self._next_number = 7
+
+    def pr_for_branch(self, branch):
+        return self._prs.get(branch)
 
     def open_pr(self, head, base, draft):
         self.calls.append(("open_pr", head, base, draft.title))
-        return 7
+        number = self._next_number
+        self._next_number += 1
+        self._prs[head] = SimpleNamespace(number=number, url=f"https://github.test/pr/{number}", consent="pending")
+        return number
 
     def comment(self, number, body):
         self.calls.append(("comment", number, body))
 
     def set_status(self, sha, state, description):
         self.calls.append(("set_status", sha, state, description))
+
+    def merge(self, number):
+        self.calls.append(("merge", number))

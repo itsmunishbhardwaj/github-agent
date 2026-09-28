@@ -7,6 +7,7 @@ import git
 from dotenv import load_dotenv
 
 from .github import GitHubClient
+from .models import ReconcileOutput
 from .store import open_db
 
 
@@ -29,6 +30,7 @@ class Ctx:
     gh: GitHubClient
     db: sqlite3.Connection
     cfg: Config
+    draft: ReconcileOutput | None = None  # set by the `reconcile` action, read by `open_pr`
 
 
 def load_ctx() -> Ctx:

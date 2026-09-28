@@ -1,6 +1,6 @@
 # github-agent: plan
 
-**Status: thin slice implemented on `feat/thin-slice` (68 tests). `src/` is authoritative; code blocks below are the original design and differ where noted in Decisions.**
+**Status: thin slice + agent loop implemented on `feat/thin-slice` (121 tests + 2 live). `src/` is authoritative; code blocks below are the original design and differ where noted in Decisions.**
 
 GitHub agent. Git + GitHub are the deterministic system; Claude senses, plans, acts, observes, reflects, repeats on top of it. Wrapper, not a new destination: collaboration stays on GitHub.
 
@@ -1059,14 +1059,14 @@ Branch first: `git init`, `git checkout -b feat/scaffold`; one PR per item group
 - [x] Scaffold: `pyproject.toml` (py>=3.11; anthropic, pydantic, typer, GitPython, PyGithub, "markitdown[pdf,docx]", pathspec, python-dotenv, PyYAML; dev: pytest, ruff), `src/github_agent/`, `.gitignore`
 - [x] `models.py`, `schema.sql`, `store.py` + tests against in-memory SQLite (FTS5 pre-pass)
 - [x] `gitops.py`: blame via sidecar, history, revert + tests on a temp repo
-- [ ] `extract.py`: md/txt/mermaid + `.github-agentignore` DONE; pdf, docx, drawio, image, sidecar generation, paper URLs TODO
+- [ ] `extract.py`: md/txt/mermaid + `.github-agentignore` + `write_sidecars` (dotfile/dir skip, raises on unsupported types) DONE; pdf/docx/drawio/image conversion, paper URLs TODO — `write_sidecars` currently has nothing to convert them with
 - [x] `llm.py`, claim extraction, `index.py` (blob-keyed, idempotent)
 - [x] `reconcile.py` DONE + live test passes: real Claude Sonnet 5 flags the seeded 40C/60C contradiction blocking, citing both Alice and Bob. Golden fixtures + eval TODO + `eval_reconcile.py`; record first precision/recall
-- [ ] `policy.py` + table-driven tests (force push denied, main denied, merge asks)
+- [x] `policy.py` + table-driven tests (force push denied, main denied, merge asks)
 - [x] `github.py` (consent from latest per-reviewer state, statuses) + tests with stubbed PyGithub
-- [ ] `loop.py`: sense, plan, act, observe, reflect; tests with fake LLM + temp repo
+- [x] `loop.py`: sense, plan, act, observe, reflect (+ watch_loop); tests with fake LLM + temp repo, plus a live test that runs the whole loop against real Claude
 - [x] `render.py` PR comment
-- [ ] `cli.py`: init, reconcile, pr, history, blame, revert DONE; sync, merge, watch, status TODO. Original list: init (incl. branch-protection setup/instructions), sync, pr, merge, watch, status, history, blame, revert
+- [x] `cli.py`: init (incl. branch-protection instructions), reconcile, pr, sync, merge, watch, history, blame, revert DONE (loop-driven sync/merge/watch on top of the deterministic reconcile/pr); status TODO
 - [ ] End-to-end on a scratch private GitHub repo with two accounts: seeded contradiction, consent, merge, revert, blame
 - [ ] Revisit success criteria with user after the end-to-end run
 - [ ] README: install, `.env`, `.github-agentignore`, branch protection
