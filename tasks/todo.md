@@ -1061,7 +1061,7 @@ Branch first: `git init`, `git checkout -b feat/scaffold`; one PR per item group
 - [x] `gitops.py`: blame via sidecar, history, revert + tests on a temp repo
 - [ ] `extract.py`: md/txt/mermaid + `.researcherignore` DONE; pdf, docx, drawio, image, sidecar generation, paper URLs TODO
 - [x] `llm.py`, claim extraction, `index.py` (blob-keyed, idempotent)
-- [ ] `reconcile.py` DONE + live test written (`pytest -m live`, needs key); golden fixtures + eval TODO + `eval_reconcile.py`; record first precision/recall
+- [x] `reconcile.py` DONE + live test passes: real Claude Sonnet 5 flags the seeded 40C/60C contradiction blocking, citing both Alice and Bob. Golden fixtures + eval TODO + `eval_reconcile.py`; record first precision/recall
 - [ ] `policy.py` + table-driven tests (force push denied, main denied, merge asks)
 - [x] `github.py` (consent from latest per-reviewer state, statuses) + tests with stubbed PyGithub
 - [ ] `loop.py`: sense, plan, act, observe, reflect; tests with fake LLM + temp repo
