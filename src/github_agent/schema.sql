@@ -32,3 +32,15 @@ END;
 CREATE TRIGGER IF NOT EXISTS claims_ad AFTER DELETE ON claims BEGIN
   INSERT INTO claims_fts(claims_fts, rowid, text) VALUES ('delete', old.rowid, old.text);
 END;
+
+CREATE TABLE IF NOT EXISTS journal (
+  id          INTEGER PRIMARY KEY,
+  ts          TEXT NOT NULL DEFAULT (datetime('now')),
+  goal        TEXT NOT NULL,
+  step        INTEGER NOT NULL,
+  action      TEXT NOT NULL,
+  verdict     TEXT NOT NULL,
+  ok          INTEGER NOT NULL,
+  observation TEXT NOT NULL,
+  lesson      TEXT NOT NULL DEFAULT ''
+);

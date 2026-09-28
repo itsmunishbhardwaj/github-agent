@@ -66,3 +66,24 @@ def test_branch_delta_reports_head_sha_and_author(db):
     record_head(db, "alice", "h1", "Alice")
     d = branch_delta(db, "alice")
     assert (d.branch, d.head_sha, d.author) == ("alice", "h1", "Alice")
+
+
+def test_save_journal_records_each_entry_with_its_lesson(db):
+    from github_agent.policy import Action
+    from github_agent.store import save_journal
+
+    class FakeEntry:
+        def __init__(self, step, action, verdict, ok, observation):
+            self.step, self.action, self.verdict, self.ok, self.observation = step, action, verdict, ok, observation
+
+    entries = [
+        FakeEntry(0, Action(kind="fetch", detail="", reason="stay current"), "auto", True, "fetched"),
+        FakeEntry(0, Action(kind="push", detail="", reason="share work"), "ask", False, "declined by user"),
+    ]
+    save_journal(db, "keep synced", entries, "remember to fetch first")
+    rows = db.execute("SELECT goal, step, action, verdict, ok, observation, lesson FROM journal ORDER BY id").fetchall()
+    assert len(rows) == 2
+    goal, step, action_json, verdict, ok, observation, lesson = rows[0]
+    assert (goal, step, verdict, ok, observation, lesson) == ("keep synced", 0, "auto", 1, "fetched", "remember to fetch first")
+    assert '"kind":"fetch"' in action_json
+    assert rows[1][3:5] == ("ask", 0)

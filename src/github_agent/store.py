@@ -1,4 +1,5 @@
 import sqlite3
+from collections.abc import Sequence
 from pathlib import Path
 
 from .models import BranchDelta, Claim
@@ -64,3 +65,11 @@ def branch_delta(db: sqlite3.Connection, branch: str) -> BranchDelta:
         added=[c for c in now if c.id not in base_ids],
         removed=[c for c in base if c.id not in now_ids],
     )
+
+
+def save_journal(db: sqlite3.Connection, goal: str, entries: Sequence, lesson: str) -> None:
+    db.executemany(
+        "INSERT INTO journal (goal, step, action, verdict, ok, observation, lesson) VALUES (?,?,?,?,?,?,?)",
+        [(goal, e.step, e.action.model_dump_json(), e.verdict, int(e.ok), e.observation, lesson) for e in entries],
+    )
+    db.commit()

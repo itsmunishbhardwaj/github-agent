@@ -1,3 +1,5 @@
+import pytest
+
 from github_agent import extract
 from github_agent.extract import _Extracted, _ExtractedClaims
 
@@ -32,3 +34,23 @@ def test_extract_claims_numbers_the_lines_and_builds_claims(monkeypatch):
         ("notes.md", "Effect vanishes above 40C", 2, "abc123", "Alice")
     ]
     assert claims[0].id == extract.claim_id("notes.md", "Effect vanishes above 40C")
+
+
+def test_write_sidecars_on_a_text_only_tree_writes_nothing(tmp_path):
+    (tmp_path / "notes.md").write_text("hello\n")
+    assert extract.write_sidecars(tmp_path) == []
+
+
+def test_write_sidecars_skips_ignored_and_internal_paths(tmp_path):
+    (tmp_path / ".github-agentignore").write_text("skip/\n")
+    (tmp_path / "skip").mkdir()
+    (tmp_path / "skip" / "x.bin").write_bytes(b"\x00")
+    (tmp_path / ".github-agent").mkdir()
+    (tmp_path / ".github-agent" / "y.bin").write_bytes(b"\x00")
+    assert extract.write_sidecars(tmp_path) == []
+
+
+def test_write_sidecars_raises_on_a_genuinely_unsupported_binary_type(tmp_path):
+    (tmp_path / "figure.xyz").write_bytes(b"\x00\x01")
+    with pytest.raises(ValueError, match="unsupported file type: figure.xyz"):
+        extract.write_sidecars(tmp_path)
