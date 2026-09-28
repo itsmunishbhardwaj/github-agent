@@ -7,7 +7,7 @@ _COLS = "c.id, c.text, c.kind, c.source_path, c.line_start, c.line_end, c.commit
 
 
 def open_db(root: Path) -> sqlite3.Connection:
-    db = sqlite3.connect(root / ".researcher" / "state.db")
+    db = sqlite3.connect(root / ".github-agent" / "state.db")
     db.executescript((Path(__file__).parent / "schema.sql").read_text())
     return db
 

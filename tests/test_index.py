@@ -1,8 +1,8 @@
 import pytest
 
-from researcher import index as index_mod
-from researcher.models import Claim
-from researcher.store import branch_delta, load_claims
+from github_agent import index as index_mod
+from github_agent.models import Claim
+from github_agent.store import branch_delta, load_claims
 
 from .gitutil import commit_file
 
@@ -54,18 +54,18 @@ def test_a_rerun_does_not_reextract_known_blobs(ctx, extracted):
     assert len(extracted) == n
 
 
-def test_ignored_files_and_researcher_internals_are_never_extracted(ctx, extracted, research_repo):
-    commit_file(research_repo, ".researcherignore", "private/\n", "ignore")
+def test_ignored_files_and_github_agent_internals_are_never_extracted(ctx, extracted, research_repo):
+    commit_file(research_repo, ".github-agentignore", "private/\n", "ignore")
     commit_file(research_repo, "private/secret.md", "top secret\n", "secret")
     commit_file(research_repo, "data.csv", "a,b\n", "data")
-    commit_file(research_repo, ".researcher/config.toml", 'main = "main"\n', "cfg")
+    commit_file(research_repo, ".github-agent/config.toml", 'main = "main"\n', "cfg")
     index_mod.index_branches(ctx, ["alice/research"])
     assert set(extracted) == {"notes.md"}
 
 
 def test_a_binary_doc_is_indexed_through_its_committed_sidecar(ctx, extracted, research_repo):
     commit_file(research_repo, "paper.pdf", b"%PDF", "add paper")
-    commit_file(research_repo, ".researcher/text/paper.pdf.md", "Paper says X.\n", "extract", author="Bob")
+    commit_file(research_repo, ".github-agent/text/paper.pdf.md", "Paper says X.\n", "extract", author="Bob")
     index_mod.index_branches(ctx, ["alice/research"])
     c = next(c for c in load_claims(ctx.db, "alice/research") if c.text == "Paper says X.")
     assert (c.source_path, c.author) == ("paper.pdf", "Bob")

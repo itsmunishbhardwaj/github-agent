@@ -1,7 +1,7 @@
 import pytest
 
-from researcher import reconcile as rc
-from researcher.models import BranchDelta, ReconcileInput, ReconcileOutput
+from github_agent import reconcile as rc
+from github_agent.models import BranchDelta, ReconcileInput, ReconcileOutput
 
 from .conftest import make_claim, seed
 from .conftest import make_conflict as conflict

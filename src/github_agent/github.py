@@ -7,7 +7,7 @@ from pydantic import BaseModel
 
 from .models import PRDraft
 
-CONTEXT = "researcher/consent"
+CONTEXT = "github-agent/consent"
 
 
 class PRState(BaseModel):

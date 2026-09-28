@@ -25,7 +25,7 @@ class _ExtractedClaims(BaseModel):
 
 
 def ignore_spec(root: Path) -> pathspec.PathSpec:
-    f = root / ".researcherignore"
+    f = root / ".github-agentignore"
     return pathspec.PathSpec.from_lines("gitignore", f.read_text().splitlines() if f.exists() else [])
 
 

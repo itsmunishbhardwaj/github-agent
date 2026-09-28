@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "researcher"
+name = "github-agent"
 version = "0.1.0"
 description = "GitHub agent for two-person research: git does the sync, Claude does the sensing"
 requires-python = ">=3.11"
@@ -21,10 +21,10 @@ dependencies = [
 dev = ["pytest", "ruff"]
 
 [project.scripts]
-researcher = "researcher.cli:app"
+github-agent = "github_agent.cli:app"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/researcher"]
+packages = ["src/github_agent"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

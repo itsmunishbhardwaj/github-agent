@@ -5,10 +5,10 @@ from pathlib import Path
 import pytest
 from dotenv import load_dotenv
 
-from researcher import llm
-from researcher.index import index_branches
-from researcher.reconcile import build_input, reconcile_branches
-from researcher.store import claims_by_id
+from github_agent import llm
+from github_agent.index import index_branches
+from github_agent.reconcile import build_input, reconcile_branches
+from github_agent.store import claims_by_id
 
 pytestmark = pytest.mark.live
 

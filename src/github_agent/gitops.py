@@ -13,7 +13,7 @@ class BlameLine(BaseModel):
 
 def sidecar_for(path: str) -> str:
     """Blame and claims run on text. Binary docs are handled through their committed extracted-markdown sidecar."""
-    return path if path.endswith(TEXT_SUFFIXES) else f".researcher/text/{path}.md"
+    return path if path.endswith(TEXT_SUFFIXES) else f".github-agent/text/{path}.md"
 
 
 def blame_lines(repo: git.Repo, path: str, rev: str = "HEAD") -> list[BlameLine]:

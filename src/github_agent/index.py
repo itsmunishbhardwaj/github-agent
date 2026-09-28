@@ -12,7 +12,7 @@ def _ref(ctx: Ctx, branch: str) -> str:
 
 def _index_commit(ctx: Ctx, label: str, commit, spec) -> None:
     for item in commit.tree.traverse():
-        if item.type != "blob" or item.path.startswith(".researcher/") or spec.match_file(item.path):
+        if item.type != "blob" or item.path.startswith(".github-agent/") or spec.match_file(item.path):
             continue
         try:
             text_blob = commit.tree / sidecar_for(item.path)

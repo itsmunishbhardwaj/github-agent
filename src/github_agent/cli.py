@@ -50,19 +50,19 @@ def init(
     main: str = "main",
 ) -> None:
     root = Path(git.Repo(search_parent_directories=True).working_dir)
-    cfg = root / ".researcher" / "config.toml"
+    cfg = root / ".github-agent" / "config.toml"
     if cfg.exists():
         typer.echo("already initialised")
         raise typer.Exit(1)
     cfg.parent.mkdir(exist_ok=True)
     member = lambda b: f'{json.dumps(b.replace("/", "-"))} = {json.dumps(b)}'
     cfg.write_text(f"main = {json.dumps(main)}\nrepo = {json.dumps(repo)}\n\n[members]\n{member(mine)}\n{member(theirs)}\n")
-    ignore = root / ".researcherignore"
+    ignore = root / ".github-agentignore"
     if not ignore.exists():
         ignore.write_text("# paths here are never sent to the LLM (gitignore syntax)\n")
     gi = root / ".gitignore"
     existing = gi.read_text().splitlines() if gi.exists() else []
-    missing = [line for line in (".env", ".researcher/state.db") if line not in existing]
+    missing = [line for line in (".env", ".github-agent/state.db") if line not in existing]
     if missing:
         gi.write_text("\n".join([*existing, *missing]) + "\n")
     typer.echo(

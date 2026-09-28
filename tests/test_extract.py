@@ -1,9 +1,9 @@
-from researcher import extract
-from researcher.extract import _Extracted, _ExtractedClaims
+from github_agent import extract
+from github_agent.extract import _Extracted, _ExtractedClaims
 
 
 def test_ignore_spec_matches_gitignore_style_patterns(tmp_path):
-    (tmp_path / ".researcherignore").write_text("private/\n*.secret.md\n")
+    (tmp_path / ".github-agentignore").write_text("private/\n*.secret.md\n")
     spec = extract.ignore_spec(tmp_path)
     assert spec.match_file("private/a.md") and spec.match_file("x.secret.md") and not spec.match_file("notes.md")
 

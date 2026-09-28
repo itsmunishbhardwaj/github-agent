@@ -21,6 +21,6 @@ def render_conflict_comment(out: ReconcileOutput, claims: dict[str, Claim]) -> s
     )
     asks = "\n".join(f"- [ ] {q}" for q in out.pr.consent_questions)
     return (
-        f"### researcher: conflict report\nRecommendation: **{out.recommendation}** (advice only)\n\n{table}\n\n"
+        f"### github-agent: conflict report\nRecommendation: **{out.recommendation}** (advice only)\n\n{table}\n\n"
         f"### Consent requested\n{asks}\n\nApprove this PR to give consent. Request changes to object."
     )

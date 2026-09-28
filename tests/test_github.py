@@ -3,9 +3,9 @@ from types import SimpleNamespace
 
 import pytest
 
-from researcher import github
-from researcher.github import GitHubClient
-from researcher.models import PRDraft
+from github_agent import github
+from github_agent.github import GitHubClient
+from github_agent.models import PRDraft
 
 from .fakes import FakePR, FakeRepo, review
 
@@ -59,7 +59,7 @@ def test_status_uses_the_consent_context_and_truncates_the_description():
     c, repo = client()
     c.set_status("abc", "pending", "x" * 200)
     st = repo.commits["abc"].statuses[0]
-    assert st["context"] == "researcher/consent" and st["state"] == "pending" and len(st["description"]) == 140
+    assert st["context"] == "github-agent/consent" and st["state"] == "pending" and len(st["description"]) == 140
 
 
 def test_merge_uses_a_merge_commit_so_per_author_history_survives():

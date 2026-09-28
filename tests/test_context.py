@@ -1,6 +1,6 @@
 import pytest
 
-from researcher.context import Config
+from github_agent.context import Config
 
 CFG = Config(main="main", repo="o/r", members={"alice": "alice/research", "bob": "bob/research"})
 
@@ -16,10 +16,10 @@ def test_other_branch_rejects_a_branch_that_is_not_a_member_branch():
 
 
 def test_load_ctx_reads_config_env_and_opens_the_db(research_repo, monkeypatch):
-    from researcher import context, github
+    from github_agent import context, github
 
-    (research_repo / ".researcher").mkdir(exist_ok=True)
-    (research_repo / ".researcher" / "config.toml").write_text(
+    (research_repo / ".github-agent").mkdir(exist_ok=True)
+    (research_repo / ".github-agent" / "config.toml").write_text(
         'main = "main"\nrepo = "o/r"\n\n[members]\nalice = "alice/research"\nbob = "bob/research"\n'
     )
     (research_repo / ".env").write_text("RESEARCHER_TEST_VAR=from-dotenv\n")
@@ -31,6 +31,6 @@ def test_load_ctx_reads_config_env_and_opens_the_db(research_repo, monkeypatch):
     assert ctx.cfg == CFG
     assert ctx.gh == ("connected", "o/r")
     assert ctx.repo.active_branch.name == "alice/research"
-    assert (research_repo / ".researcher" / "state.db").exists()
+    assert (research_repo / ".github-agent" / "state.db").exists()
     import os
     assert os.environ["RESEARCHER_TEST_VAR"] == "from-dotenv"

@@ -1,4 +1,4 @@
-from researcher.render import render_conflict_comment
+from github_agent.render import render_conflict_comment
 
 from .conftest import make_claim, make_conflict, make_output
 

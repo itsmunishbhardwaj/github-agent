@@ -1,7 +1,7 @@
 import git
 import pytest
 
-from researcher.gitops import blame_lines, dirty_paths, file_history, revert_commit, sidecar_for
+from github_agent.gitops import blame_lines, dirty_paths, file_history, revert_commit, sidecar_for
 
 from .gitutil import commit_file
 
@@ -14,7 +14,7 @@ def test_dirty_paths_lists_modified_and_untracked_files(research_repo):
 
 def test_sidecar_for_text_is_the_file_and_for_binary_docs_the_committed_extract():
     assert sidecar_for("notes.md") == "notes.md"
-    assert sidecar_for("papers/p.pdf") == ".researcher/text/papers/p.pdf.md"
+    assert sidecar_for("papers/p.pdf") == ".github-agent/text/papers/p.pdf.md"
 
 
 def test_blame_attributes_each_line_to_the_author_who_wrote_it(research_repo):
@@ -25,7 +25,7 @@ def test_blame_attributes_each_line_to_the_author_who_wrote_it(research_repo):
 
 def test_blame_of_a_binary_doc_reads_its_committed_sidecar(research_repo):
     commit_file(research_repo, "paper.pdf", b"%PDF-binary", "add paper", author="Alice")
-    commit_file(research_repo, ".researcher/text/paper.pdf.md", "Claim from the paper.\n", "extract paper", author="Bob")
+    commit_file(research_repo, ".github-agent/text/paper.pdf.md", "Claim from the paper.\n", "extract paper", author="Bob")
     assert [(b.line, b.author) for b in blame_lines(git.Repo(research_repo), "paper.pdf")] == [(1, "Bob")]
 
 

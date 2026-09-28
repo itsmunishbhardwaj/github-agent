@@ -2,9 +2,9 @@ import git
 import pytest
 from typer.testing import CliRunner
 
-from researcher import cli
-from researcher import index as index_mod
-from researcher.models import Claim
+from github_agent import cli
+from github_agent import index as index_mod
+from github_agent.models import Claim
 
 from .conftest import make_conflict, make_output
 from .fakes import FakeGH
@@ -96,11 +96,11 @@ def test_init_writes_config_ignore_file_and_gitignore_entries_and_is_not_rerunna
     args = ["init", "--repo", "o/r", "--mine", "alice/research", "--theirs", "bob/research"]
     r = runner.invoke(cli.app, args)
     assert r.exit_code == 0 and "branch protection" in r.output.lower()
-    cfg = (fresh / ".researcher" / "config.toml").read_text()
+    cfg = (fresh / ".github-agent" / "config.toml").read_text()
     assert 'repo = "o/r"' in cfg and '"alice/research"' in cfg and '"bob/research"' in cfg
-    assert (fresh / ".researcherignore").exists()
+    assert (fresh / ".github-agentignore").exists()
     gi = (fresh / ".gitignore").read_text().splitlines()
-    assert ".env" in gi and ".researcher/state.db" in gi
+    assert ".env" in gi and ".github-agent/state.db" in gi
     again = runner.invoke(cli.app, args)
     assert again.exit_code == 1 and "already initialised" in again.output
     assert (fresh / ".gitignore").read_text().splitlines().count(".env") == 1

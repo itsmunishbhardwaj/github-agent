@@ -35,6 +35,6 @@ def load_ctx() -> Ctx:
     repo = git.Repo(search_parent_directories=True)
     root = Path(repo.working_dir)
     load_dotenv(root / ".env")
-    raw = tomllib.loads((root / ".researcher" / "config.toml").read_text())
+    raw = tomllib.loads((root / ".github-agent" / "config.toml").read_text())
     cfg = Config(main=raw["main"], repo=raw["repo"], members=raw["members"])
     return Ctx(repo=repo, gh=GitHubClient.connect(cfg.repo), db=open_db(root), cfg=cfg)

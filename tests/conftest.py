@@ -3,8 +3,8 @@ from pathlib import Path
 import git
 import pytest
 
-from researcher.models import Claim, Conflict, PRDraft, ReconcileOutput
-from researcher.store import open_db, record_branch_file, record_head, save_claims
+from github_agent.models import Claim, Conflict, PRDraft, ReconcileOutput
+from github_agent.store import open_db, record_branch_file, record_head, save_claims
 
 from .gitutil import commit_file, run
 
@@ -15,7 +15,7 @@ def make_claim(id: str, text: str = "a finding", path: str = "a.md", line: int =
 
 @pytest.fixture
 def db(tmp_path):
-    (tmp_path / ".researcher").mkdir()
+    (tmp_path / ".github-agent").mkdir()
     return open_db(tmp_path)
 
 
@@ -32,7 +32,7 @@ def research_repo(tmp_path) -> Path:
     run(tmp_path, "git", "init", "-q", "--bare", "-b", "main", str(tmp_path / "origin.git"))
     work = tmp_path / "work"
     run(tmp_path, "git", "clone", "-q", str(tmp_path / "origin.git"), str(work))
-    commit_file(work, ".gitignore", ".env\n.researcher/state.db\n", "gitignore", author="Carol")
+    commit_file(work, ".gitignore", ".env\n.github-agent/state.db\n", "gitignore", author="Carol")
     commit_file(work, "notes.md", "# Notes\nBaseline finding one.\n", "base", author="Carol")
     run(work, "git", "push", "-q", "-u", "origin", "main")
     run(work, "git", "checkout", "-q", "-b", "bob/research")
@@ -46,7 +46,7 @@ def research_repo(tmp_path) -> Path:
 
 @pytest.fixture
 def ctx(research_repo, db_at):
-    from researcher.context import Config, Ctx
+    from github_agent.context import Config, Ctx
 
     return Ctx(
         repo=git.Repo(research_repo), gh=None, db=db_at(research_repo),
@@ -57,7 +57,7 @@ def ctx(research_repo, db_at):
 @pytest.fixture
 def db_at():
     def make(root: Path):
-        (root / ".researcher").mkdir(exist_ok=True)
+        (root / ".github-agent").mkdir(exist_ok=True)
         return open_db(root)
     return make
 

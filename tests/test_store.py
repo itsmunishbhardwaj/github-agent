@@ -1,4 +1,4 @@
-from researcher.store import (
+from github_agent.store import (
     blob_known,
     branch_delta,
     claims_by_id,

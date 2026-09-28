@@ -1,4 +1,4 @@
-from researcher import llm
+from github_agent import llm
 
 
 def test_get_client_is_built_lazily_and_cached(monkeypatch):

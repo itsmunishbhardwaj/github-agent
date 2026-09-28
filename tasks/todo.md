@@ -1,4 +1,4 @@
-# researcher: plan
+# github-agent: plan
 
 **Status: thin slice implemented on `feat/thin-slice` (68 tests). `src/` is authoritative; code blocks below are the original design and differ where noted in Decisions.**
 
@@ -10,7 +10,7 @@ GitHub agent. Git + GitHub are the deterministic system; Claude senses, plans, a
 |---|---|---|
 | Problem | Two researchers collaborate on GitHub; agent runs git so they don't, flags cross-branch conflicts, drafts consent-seeking PRs | user |
 | Product shape | Wrapper around Git + GitHub, no UI of its own | user |
-| Repo | Greenfield, `~/researcher` | user ("create") |
+| Repo | Greenfield, `~/github-agent` (renamed from `~/researcher`; package `researcher` -> `github_agent`) | user |
 | Language / CLI | Python 3.11+, Typer. FastAPI dropped (no HTTP server) | delegated + user-confirmed |
 | Git remote / PR layer | GitHub, private repo; PR + required approving review = consent | delegated |
 | Artifacts | md, docx, pdf, diagrams/flowcharts, paper URLs | user |
@@ -22,7 +22,7 @@ GitHub agent. Git + GitHub are the deterministic system; Claude senses, plans, a
 | GitHub surface | Local CLI + PR comments + commit statuses using user's token | user |
 | UI | None; GitHub + terminal | user |
 | Storage | In-repo files + local uncommitted SQLite | user |
-| Privacy | Everything eligible except `.researcherignore` paths | user |
+| Privacy | Everything eligible except `.github-agentignore` paths | user |
 | Stage | MVP, 2 people | user |
 | Merged KB | The `main` branch's claim index. LLM does not author KB files | delegated |
 | Retrieval | SQLite FTS5 + LLM judgement. No embeddings (Anthropic has no embeddings API; corpus is tiny) | delegated |
@@ -35,15 +35,15 @@ GitHub agent. Git + GitHub are the deterministic system; Claude senses, plans, a
 | Deadline | None | user |
 
 Success criteria (provisional; user unsure, revisit after the first end-to-end run):
-1. `researcher sync` commits and rebases own branch with zero user git commands; nothing leaves the machine without a confirm.
-2. Two branches with a seeded contradiction: `researcher pr` flags it `blocking`, citing both claims by `file:line`, author, commit.
+1. `github-agent sync` commits and rebases own branch with zero user git commands; nothing leaves the machine without a confirm.
+2. Two branches with a seeded contradiction: `github-agent pr` flags it `blocking`, citing both claims by `file:line`, author, commit.
 3. Agent cannot merge until the collaborator's approving review exists; `merge_pr` raises otherwise.
-4. `researcher revert <sha>` restores prior state as a new commit; `researcher blame <path>` shows per-line author for md and for docx/pdf (via sidecar).
+4. `github-agent revert <sha>` restores prior state as a new commit; `github-agent blame <path>` shows per-line author for md and for docx/pdf (via sidecar).
 5. Golden-set eval for `reconcile_branches` reports precision/recall; targets set after the first run.
 
 ## 1. Inputs
 
-Everything fed into the core function. `src/researcher/models.py`.
+Everything fed into the core function. `src/github_agent/models.py`.
 
 ```python
 from typing import Literal
@@ -126,7 +126,7 @@ EXAMPLE = ReconcileOutput(
 
 ## 3. Function: `reconcile_branches`
 
-`src/researcher/reconcile.py`. One structured-output call over the merged KB plus both branches' deltas, then deterministic validation with retry (reflect on its own output). The pre-pass `candidate_pairs` keeps the LLM focused on likely-related claims.
+`src/github_agent/reconcile.py`. One structured-output call over the merged KB plus both branches' deltas, then deterministic validation with retry (reflect on its own output). The pre-pass `candidate_pairs` keeps the LLM focused on likely-related claims.
 
 ```python
 import re
@@ -214,7 +214,7 @@ flowchart TD
     USER(["Researcher A (terminal)"])
     COLLAB(["Collaborator B on github.com"])
     KEYS["Anthropic key: env var or .env, own or shared"]
-    IGNORE[".researcherignore filter"]
+    IGNORE[".github-agentignore filter"]
 
     subgraph LOCAL["Researcher A machine: local agent"]
         CLI["Typer CLI: sync, watch, pr, status, history, blame, revert"]
@@ -270,7 +270,7 @@ flowchart TD
 
 ## 5. API (CLI)
 
-HTTP API: N/A, confirmed by user. The public interface is the CLI. `src/researcher/cli.py`.
+HTTP API: N/A, confirmed by user. The public interface is the CLI. `src/github_agent/cli.py`.
 
 ```python
 import typer
@@ -297,7 +297,7 @@ def _confirm(action: Action, ctx: Ctx) -> bool:
 
 @app.command()
 def init() -> None:
-    """Write .researcher/config.toml, .researcherignore, .gitignore entries."""
+    """Write .github-agent/config.toml, .github-agentignore, .gitignore entries."""
     ...
 
 
@@ -593,7 +593,7 @@ class BlameLine(BaseModel):
 
 def sidecar_for(path: str) -> str:
     """Blame runs on text. Binary docs are blamed through their extracted-markdown sidecar."""
-    return path if path.endswith((".md", ".txt", ".mmd")) else f".researcher/text/{path}.md"
+    return path if path.endswith((".md", ".txt", ".mmd")) else f".github-agent/text/{path}.md"
 
 
 def blame_lines(repo: git.Repo, path: str) -> list[BlameLine]:
@@ -633,7 +633,7 @@ from pydantic import BaseModel
 
 from .models import PRDraft
 
-CONTEXT = "researcher/consent"
+CONTEXT = "github-agent/consent"
 
 
 class PRState(BaseModel):
@@ -684,7 +684,7 @@ class GitHubClient:
 
 ### 6e. Extraction and indexing, `extract.py` / `index.py`
 
-Binary docs get a committed markdown sidecar at `.researcher/text/<path>.md`; claims and blame both run on text.
+Binary docs get a committed markdown sidecar at `.github-agent/text/<path>.md`; claims and blame both run on text.
 
 ```python
 import base64
@@ -706,7 +706,7 @@ IMAGE = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg"}
 
 
 def ignore_spec(root: Path) -> pathspec.PathSpec:
-    f = root / ".researcherignore"
+    f = root / ".github-agentignore"
     return pathspec.PathSpec.from_lines("gitwildmatch", f.read_text().splitlines() if f.exists() else [])
 
 
@@ -743,7 +743,7 @@ def extract_text(path: Path) -> str:
 
 
 def write_sidecar(root: Path, src: Path) -> Path:
-    out = root / ".researcher" / "text" / (src.relative_to(root).as_posix() + ".md")
+    out = root / ".github-agent" / "text" / (src.relative_to(root).as_posix() + ".md")
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(extract_text(src))
     return out
@@ -787,7 +787,7 @@ def index_branches(ctx, branches: list[str]) -> None:
         ref = branch if branch == ctx.repo.active_branch.name else f"origin/{branch}"
         commit = ctx.repo.commit(ref)
         for blob in commit.tree.traverse():
-            if blob.type != "blob" or spec.match_file(blob.path) or blob.path.startswith(".researcher/"):
+            if blob.type != "blob" or spec.match_file(blob.path) or blob.path.startswith(".github-agent/"):
                 continue
             text_path = sidecar_for(blob.path)
             try:
@@ -821,7 +821,7 @@ def write_sidecars(ctx) -> list[str]:
     written = []
     for p in root.rglob("*"):
         rel = p.relative_to(root).as_posix()
-        if p.is_file() and not rel.startswith((".git/", ".researcher/")) and not spec.match_file(rel) and p.suffix.lower() in {".pdf", ".docx", ".drawio", ".png", ".jpg", ".jpeg"}:
+        if p.is_file() and not rel.startswith((".git/", ".github-agent/")) and not spec.match_file(rel) and p.suffix.lower() in {".pdf", ".docx", ".drawio", ".png", ".jpg", ".jpeg"}:
             written.append(write_sidecar(root, p).as_posix())
     return written
 ```
@@ -868,7 +868,7 @@ def load_ctx() -> Ctx:
     repo = git.Repo(search_parent_directories=True)
     root = Path(repo.working_dir)
     load_dotenv(root / ".env")
-    raw = tomllib.loads((root / ".researcher" / "config.toml").read_text())
+    raw = tomllib.loads((root / ".github-agent" / "config.toml").read_text())
     cfg = Config(main=raw["main"], repo=raw["repo"], members=raw["members"])
     return Ctx(repo=repo, gh=GitHubClient(cfg.repo), db=open_db(root), cfg=cfg)
 ```
@@ -881,8 +881,8 @@ Golden fixtures: labelled claim sets with known contradictions/duplicates. Repor
 import json
 from pathlib import Path
 
-from researcher.models import ReconcileInput
-from researcher.reconcile import reconcile_branches
+from github_agent.models import ReconcileInput
+from github_agent.reconcile import reconcile_branches
 
 
 def pair(c) -> frozenset[str]:
@@ -920,12 +920,12 @@ def render_conflict_comment(out: ReconcileOutput, claims: dict[str, Claim]) -> s
         rows.append(f"| {ICON[c.severity]} | {c.kind} | {c.explanation} | {cites} | {c.suggested_resolution} |")
     table = "| Severity | Kind | Why | Claims | Suggested resolution |\n|---|---|---|---|---|\n" + "\n".join(rows) if rows else "No conflicts found."
     asks = "\n".join(f"- [ ] {q}" for q in out.pr.consent_questions)
-    return f"### researcher: conflict report\nRecommendation: **{out.recommendation}** (advice only)\n\n{table}\n\n### Consent requested\n{asks}\n\nApprove this PR to give consent. Request changes to object."
+    return f"### github-agent: conflict report\nRecommendation: **{out.recommendation}** (advice only)\n\n{table}\n\n### Consent requested\n{asks}\n\nApprove this PR to give consent. Request changes to object."
 ```
 
 ## 8. Database
 
-`.researcher/state.db`, uncommitted, rebuildable from git. Claims are keyed by text blob so unchanged files are never re-extracted and branches share rows. `src/researcher/store.py`.
+`.github-agent/state.db`, uncommitted, rebuildable from git. Claims are keyed by text blob so unchanged files are never re-extracted and branches share rows. `src/github_agent/store.py`.
 
 ```sql
 CREATE TABLE IF NOT EXISTS claims (
@@ -980,7 +980,7 @@ _COLS = "c.id, c.text, c.kind, c.source_path, c.line_start, c.line_end, c.commit
 
 
 def open_db(root: Path) -> sqlite3.Connection:
-    db = sqlite3.connect(root / ".researcher" / "state.db")
+    db = sqlite3.connect(root / ".github-agent" / "state.db")
     db.executescript((Path(__file__).parent / "schema.sql").read_text())
     return db
 
@@ -1024,7 +1024,7 @@ def save_journal(db: sqlite3.Connection, goal: str, entries, lesson: str) -> Non
 In-repo layout (committed unless noted):
 
 ```toml
-# .researcher/config.toml
+# .github-agent/config.toml
 main = "main"
 repo = "owner/research-repo"
 
@@ -1034,11 +1034,11 @@ bob = "bob/research"
 ```
 
 ```
-.researcher/config.toml
-.researcher/text/**.md      sidecars for pdf/docx/drawio/images (committed: blame works)
-.researcher/state.db        SQLite (gitignored)
-.researcherignore           paths never sent to the LLM
-refs.yaml                   paper URLs; fetched text snapshotted under .researcher/text/refs/
+.github-agent/config.toml
+.github-agent/text/**.md      sidecars for pdf/docx/drawio/images (committed: blame works)
+.github-agent/state.db        SQLite (gitignored)
+.github-agentignore           paths never sent to the LLM
+refs.yaml                   paper URLs; fetched text snapshotted under .github-agent/text/refs/
 .env                        ANTHROPIC_API_KEY (gitignored)
 ```
 
@@ -1050,16 +1050,16 @@ refs.yaml                   paper URLs; fetched text snapshotted under .research
 - `merged_kb` is sent whole; fine at 2 people, needs FTS pre-filtering at scale.
 - Commit statuses only signal consent; real enforcement is a branch-protection rule (require 1 approving review on `main`). `init` must set it or print the instruction.
 - Paper URLs: fetch + snapshot policy (when to refresh) not designed yet.
-- Sending unpublished research to the Anthropic API: `.researcherignore` is the only control.
+- Sending unpublished research to the Anthropic API: `.github-agentignore` is the only control.
 
 ## Implementation checklist
 
 Branch first: `git init`, `git checkout -b feat/scaffold`; one PR per item group; conventional commits.
 
-- [x] Scaffold: `pyproject.toml` (py>=3.11; anthropic, pydantic, typer, GitPython, PyGithub, "markitdown[pdf,docx]", pathspec, python-dotenv, PyYAML; dev: pytest, ruff), `src/researcher/`, `.gitignore`
+- [x] Scaffold: `pyproject.toml` (py>=3.11; anthropic, pydantic, typer, GitPython, PyGithub, "markitdown[pdf,docx]", pathspec, python-dotenv, PyYAML; dev: pytest, ruff), `src/github_agent/`, `.gitignore`
 - [x] `models.py`, `schema.sql`, `store.py` + tests against in-memory SQLite (FTS5 pre-pass)
 - [x] `gitops.py`: blame via sidecar, history, revert + tests on a temp repo
-- [ ] `extract.py`: md/txt/mermaid + `.researcherignore` DONE; pdf, docx, drawio, image, sidecar generation, paper URLs TODO
+- [ ] `extract.py`: md/txt/mermaid + `.github-agentignore` DONE; pdf, docx, drawio, image, sidecar generation, paper URLs TODO
 - [x] `llm.py`, claim extraction, `index.py` (blob-keyed, idempotent)
 - [x] `reconcile.py` DONE + live test passes: real Claude Sonnet 5 flags the seeded 40C/60C contradiction blocking, citing both Alice and Bob. Golden fixtures + eval TODO + `eval_reconcile.py`; record first precision/recall
 - [ ] `policy.py` + table-driven tests (force push denied, main denied, merge asks)
@@ -1069,7 +1069,7 @@ Branch first: `git init`, `git checkout -b feat/scaffold`; one PR per item group
 - [ ] `cli.py`: init, reconcile, pr, history, blame, revert DONE; sync, merge, watch, status TODO. Original list: init (incl. branch-protection setup/instructions), sync, pr, merge, watch, status, history, blame, revert
 - [ ] End-to-end on a scratch private GitHub repo with two accounts: seeded contradiction, consent, merge, revert, blame
 - [ ] Revisit success criteria with user after the end-to-end run
-- [ ] README: install, `.env`, `.researcherignore`, branch protection
+- [ ] README: install, `.env`, `.github-agentignore`, branch protection
 
 ## Review
 
