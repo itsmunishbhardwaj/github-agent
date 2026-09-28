@@ -1,6 +1,6 @@
 # github-agent: plan
 
-**Status: thin slice + agent loop implemented on `feat/thin-slice` (121 tests + 2 live). `src/` is authoritative; code blocks below are the original design and differ where noted in Decisions.**
+**Status: thin slice + agent loop + PR comment-awareness implemented on `feat/thin-slice` (129 tests + 3 live). Live GitHub demo run against a real scratch repo (`github-agent-demo`): real reconcile, real PR open, real conflict comment + pending status, `merge` correctly refuses pre-consent. `src/` is authoritative; code blocks below are the original design and differ where noted in Decisions.**
 
 GitHub agent. Git + GitHub are the deterministic system; Claude senses, plans, acts, observes, reflects, repeats on top of it. Wrapper, not a new destination: collaboration stays on GitHub.
 
@@ -1076,3 +1076,18 @@ Branch first: `git init`, `git checkout -b feat/scaffold`; one PR per item group
 Plan verification (2026-09-19): all Python blocks parse; assembled into a scratch package, 10 pytest checks pass (module imports, Pydantic schemas accepted by the SDK's structured-output transform, FTS5 candidate pairs, claim indexing idempotence on a real git repo, blame, revert, policy table). Not verified: live Claude calls, live GitHub calls, markitdown conversions, Mermaid rendering.
 
 _(implementation review: fill after implementation)_
+
+## PR comment-awareness (added after the live demo)
+
+User asked how to give the agent suggestions rather than a flat approve/request-changes. Original design only fed
+formal review state (`approved`/`changes_requested`/`pending`) into the loop; plain PR comments were invisible.
+
+Added: `GitHubClient.pr_comments()` (collaborator's comments only, excludes the PR author's own posts) and a
+`seen_pr_comments` cutoff table so `sense()` reports only comments not already seen. `PRState.new_comments` carries
+them into `Snapshot`, and `PLAN_SYSTEM` now tells Claude to read and address them. Verified live: Claude read a
+seeded "can you re-run the 40C trial?" comment and planned+executed a `comment_pr` reply naming it.
+
+Bug found by that live test, fixed: `run_loop` treated `plan.done=True` as "skip this batch of actions" - a real
+model used `done=True` on the same response that also contained real actions (its final batch), meaning as-written
+the loop silently discarded them. Fixed to only stop early on an *empty* actions list; execution no longer depends
+on `done`. Regression test: `test_run_loop_still_executes_actions_when_the_plan_also_says_done`.

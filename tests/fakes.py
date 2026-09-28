@@ -1,5 +1,7 @@
 from types import SimpleNamespace
 
+from github_agent.github import PRComment, PRState
+
 
 class FakeClaude:
     """Scripted stand-in for the network boundary: one parsed output per messages.parse call."""
@@ -15,18 +17,27 @@ class FakeClaude:
 
 
 class FakePR:
-    def __init__(self, number, author, reviews=(), url="https://github.test/pr/1"):
+    def __init__(self, number, author, reviews=(), issue_comments=(), url="https://github.test/pr/1"):
         self.number, self.user, self.html_url = number, SimpleNamespace(login=author), url
-        self._reviews, self.comments, self.merged_with = list(reviews), [], None
+        self._reviews, self._issue_comments = list(reviews), list(issue_comments)
+        self.comments, self.merged_with = [], None
 
     def get_reviews(self):
         return self._reviews
 
+    def get_issue_comments(self):
+        return self._issue_comments
+
     def create_issue_comment(self, body):
         self.comments.append(body)
+        self._issue_comments.append(issue_comment(self.user.login, body, "2026-01-01T00:00:00"))
 
     def merge(self, merge_method):
         self.merged_with = merge_method
+
+
+def issue_comment(user: str, body: str, created_at: str):
+    return SimpleNamespace(user=SimpleNamespace(login=user), body=body, created_at=SimpleNamespace(isoformat=lambda: created_at))
 
 
 def review(user: str, state: str):
@@ -65,11 +76,12 @@ class FakeRepo:
 
 
 class FakeGH:
-    """Records what the CLI/loop asks GitHub to do."""
+    """Records what the CLI/loop asks GitHub to do. Returns real PRState/PRComment, matching GitHubClient's contract."""
 
     def __init__(self):
         self.calls = []
-        self._prs = {}  # branch -> PRState-like SimpleNamespace
+        self._prs = {}  # branch -> PRState
+        self._comments = {}  # pr number -> list[PRComment]
         self._next_number = 7
 
     def pr_for_branch(self, branch):
@@ -79,8 +91,16 @@ class FakeGH:
         self.calls.append(("open_pr", head, base, draft.title))
         number = self._next_number
         self._next_number += 1
-        self._prs[head] = SimpleNamespace(number=number, url=f"https://github.test/pr/{number}", consent="pending")
+        self._prs[head] = PRState(number=number, url=f"https://github.test/pr/{number}", consent="pending")
+        self._comments[number] = []
         return number
+
+    def seed_comment(self, number, author, body, created_at):
+        """Test helper: inject an external (collaborator) comment as if left on GitHub."""
+        self._comments.setdefault(number, []).append(PRComment(author=author, body=body, created_at=created_at))
+
+    def pr_comments(self, number, since=None):
+        return [c for c in self._comments.get(number, []) if since is None or c.created_at > since]
 
     def comment(self, number, body):
         self.calls.append(("comment", number, body))

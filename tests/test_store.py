@@ -87,3 +87,20 @@ def test_save_journal_records_each_entry_with_its_lesson(db):
     assert (goal, step, verdict, ok, observation, lesson) == ("keep synced", 0, "auto", 1, "fetched", "remember to fetch first")
     assert '"kind":"fetch"' in action_json
     assert rows[1][3:5] == ("ask", 0)
+
+
+def test_seen_pr_comment_cutoff_is_none_until_recorded(db):
+    from github_agent.store import record_seen_pr_comments, seen_pr_comment_cutoff
+
+    assert seen_pr_comment_cutoff(db, 1) is None
+    record_seen_pr_comments(db, 1, "2026-01-01T00:00:00")
+    assert seen_pr_comment_cutoff(db, 1) == "2026-01-01T00:00:00"
+    record_seen_pr_comments(db, 1, "2026-01-02T00:00:00")
+    assert seen_pr_comment_cutoff(db, 1) == "2026-01-02T00:00:00"
+
+
+def test_seen_pr_comment_cutoff_is_per_pr_number(db):
+    from github_agent.store import record_seen_pr_comments, seen_pr_comment_cutoff
+
+    record_seen_pr_comments(db, 1, "2026-01-01T00:00:00")
+    assert seen_pr_comment_cutoff(db, 2) is None

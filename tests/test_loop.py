@@ -57,6 +57,25 @@ def test_sense_lists_the_collaborators_commits_since_the_fork_on_first_run(wired
     assert snap.collaborator_new_commits == ["bob result"]
 
 
+def test_sense_reports_no_pr_comments_when_there_is_no_open_pr(wired):
+    assert sense(wired).pr is None
+
+
+def test_sense_attaches_the_collaborators_new_pr_comments(wired):
+    number = wired.gh.open_pr("alice/research", "main", make_output().pr)
+    wired.gh.seed_comment(number, "bob", "have you tried 50C?", "2026-01-02T00:00:00")
+    snap = sense(wired)
+    assert [c.body for c in snap.pr.new_comments] == ["have you tried 50C?"]
+
+
+def test_sense_does_not_resurface_a_comment_it_already_reported(wired):
+    number = wired.gh.open_pr("alice/research", "main", make_output().pr)
+    wired.gh.seed_comment(number, "bob", "first", "2026-01-01T00:00:00")
+    sense(wired)  # marks "first" as seen
+    wired.gh.seed_comment(number, "bob", "second", "2026-01-02T00:00:00")
+    assert [c.body for c in sense(wired).pr.new_comments] == ["second"]
+
+
 def test_sense_only_lists_collaborator_commits_pushed_since_the_last_sense(wired, research_repo, tmp_path):
     sense(wired)  # records bob's current head as seen
     second = tmp_path / "second"
@@ -254,3 +273,12 @@ def test_watch_loop_runs_once_per_distinct_snapshot_and_stops_after_n_iterations
     monkeypatch.setattr(loop.time, "sleep", lambda s: None)
     watch_loop(wired, interval=1, confirm=always_confirm, max_iterations=3)
     assert len(runs) == 2
+
+
+def test_run_loop_still_executes_actions_when_the_plan_also_says_done(wired, monkeypatch):
+    """done=True means 'no more planning rounds needed', not 'skip these actions' - a real model used it that way."""
+    plan = Plan(done=True, actions=[Action(kind="fetch", detail="", reason="stay current")])
+    planner = FakePlanner(plan, Reflection(goal_met=True, lesson=""))
+    monkeypatch.setattr(loop, "ask", planner)
+    journal = run_loop(wired, "check for updates", always_confirm)
+    assert journal == [Entry(step=0, action=plan.actions[0], verdict="auto", ok=True, observation="fetched")]

@@ -73,3 +73,13 @@ def save_journal(db: sqlite3.Connection, goal: str, entries: Sequence, lesson: s
         [(goal, e.step, e.action.model_dump_json(), e.verdict, int(e.ok), e.observation, lesson) for e in entries],
     )
     db.commit()
+
+
+def seen_pr_comment_cutoff(db: sqlite3.Connection, pr_number: int) -> str | None:
+    row = db.execute("SELECT last_seen_at FROM seen_pr_comments WHERE pr_number = ?", (pr_number,)).fetchone()
+    return row[0] if row else None
+
+
+def record_seen_pr_comments(db: sqlite3.Connection, pr_number: int, cutoff: str) -> None:
+    db.execute("INSERT OR REPLACE INTO seen_pr_comments VALUES (?,?)", (pr_number, cutoff))
+    db.commit()

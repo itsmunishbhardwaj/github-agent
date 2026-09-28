@@ -10,10 +10,17 @@ from .models import PRDraft
 CONTEXT = "github-agent/consent"
 
 
+class PRComment(BaseModel):
+    author: str
+    body: str
+    created_at: str
+
+
 class PRState(BaseModel):
     number: int
     url: str
     consent: Literal["approved", "changes_requested", "pending"]
+    new_comments: list[PRComment] = []  # filled in by sense(), not by pr_for_branch (which has no db access)
 
 
 def github_token() -> str:
@@ -42,6 +49,17 @@ class GitHubClient:
         states = set(latest.values())
         consent = "changes_requested" if "CHANGES_REQUESTED" in states else "approved" if "APPROVED" in states else "pending"
         return PRState(number=pr.number, url=pr.html_url, consent=consent)
+
+    def pr_comments(self, number: int, since: str | None = None) -> list[PRComment]:
+        """The collaborator's plain PR comments (never the PR author's own), oldest first, optionally after `since`."""
+        pr = self.repo.get_pull(number)
+        out = [
+            PRComment(author=c.user.login, body=c.body, created_at=c.created_at.isoformat())
+            for c in pr.get_issue_comments()
+            if c.user.login != pr.user.login
+        ]
+        out.sort(key=lambda c: c.created_at)
+        return [c for c in out if since is None or c.created_at > since]
 
     def open_pr(self, head: str, base: str, draft: PRDraft) -> int:
         body = draft.body_md + "\n\n## Consent requested\n" + "\n".join(f"- [ ] {q}" for q in draft.consent_questions)

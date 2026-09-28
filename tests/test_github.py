@@ -7,7 +7,7 @@ from github_agent import github
 from github_agent.github import GitHubClient
 from github_agent.models import PRDraft
 
-from .fakes import FakePR, FakeRepo, review
+from .fakes import FakePR, FakeRepo, issue_comment, review
 
 
 def client(*prs):
@@ -75,3 +75,23 @@ def test_token_prefers_the_environment_then_the_gh_cli(monkeypatch):
     monkeypatch.delenv("GITHUB_TOKEN")
     monkeypatch.setattr(subprocess, "run", lambda *a, **k: SimpleNamespace(stdout="from-gh\n"))
     assert github.github_token() == "from-gh"
+
+
+def test_pr_comments_excludes_the_prs_own_author(monkeypatch):
+    pr = FakePR(7, "alice-gh", issue_comments=[
+        issue_comment("alice-gh", "my own note", "2026-01-01T00:00:00"),
+        issue_comment("bob", "have you tried 50C?", "2026-01-02T00:00:00"),
+    ])
+    c, _ = client(pr)
+    comments = c.pr_comments(7)
+    assert [(x.author, x.body) for x in comments] == [("bob", "have you tried 50C?")]
+
+
+def test_pr_comments_only_returns_comments_after_the_given_cutoff(monkeypatch):
+    pr = FakePR(7, "alice-gh", issue_comments=[
+        issue_comment("bob", "first", "2026-01-01T00:00:00"),
+        issue_comment("bob", "second", "2026-01-02T00:00:00"),
+    ])
+    c, _ = client(pr)
+    assert [x.body for x in c.pr_comments(7, since="2026-01-01T00:00:00")] == ["second"]
+    assert [x.body for x in c.pr_comments(7, since=None)] == ["first", "second"]

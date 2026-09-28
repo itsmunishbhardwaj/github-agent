@@ -5,9 +5,11 @@ from pathlib import Path
 import pytest
 from dotenv import load_dotenv
 
+from github_agent import index as index_mod
 from github_agent import llm
 from github_agent.index import index_branches
 from github_agent.loop import run_loop
+from github_agent.models import Claim
 from github_agent.reconcile import build_input, reconcile_branches
 from github_agent.store import claims_by_id
 
@@ -56,3 +58,31 @@ def test_the_agent_loop_reconciles_and_stops_to_ask_before_opening_a_pr(ctx, mon
     assert any(e.action.kind == "reconcile" and e.ok for e in journal), journal
     assert asked, "loop never reached an action requiring consent"
     assert all(a.kind != "merge_pr" for a in asked[:1]) or True  # merge is not expected this early
+
+
+def test_the_loop_reacts_to_a_real_collaborator_comment_on_the_open_pr(ctx, monkeypatch):
+    """A comment left on GitHub, not a formal review, should still change what Claude plans next."""
+    _need_key()
+    ctx.gh = FakeGH()
+    monkeypatch.setattr(
+        index_mod, "extract_claims",
+        lambda path, text, commit, author: [
+            Claim(id=f"{path}:{i}", text=line, kind="finding", source_path=path, line_start=i, line_end=i, commit=commit, author=author)
+            for i, line in enumerate(text.splitlines(), 1) if line and not line.startswith("#")
+        ],
+    )
+    from github_agent.models import PRDraft
+
+    number = ctx.gh.open_pr("alice/research", "main", PRDraft(title="add results", body_md="x", consent_questions=[]))
+    ctx.gh.seed_comment(number, "bob", "Can you re-run the 40C trial before we merge this?", "2026-01-01T00:00:00")
+
+    seen_comment = []
+
+    def confirm(action, c):
+        if action.kind == "comment_pr":
+            seen_comment.append(action.detail)
+        return True
+
+    journal = run_loop(ctx, "Check the open PR for anything from your collaborator and respond to it.", confirm, max_steps=4)
+    assert seen_comment, [(e.action.kind, e.action.reason) for e in journal]
+    assert "40c" in seen_comment[0].lower() or "re-run" in seen_comment[0].lower()

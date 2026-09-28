@@ -14,7 +14,7 @@ from .llm import ask
 from .policy import Action, decide
 from .reconcile import build_input, reconcile_branches
 from .render import render_conflict_comment
-from .store import claims_by_id, save_journal
+from .store import claims_by_id, record_seen_pr_comments, save_journal, seen_pr_comment_cutoff
 
 
 class Snapshot(BaseModel):
@@ -46,7 +46,12 @@ class Entry(BaseModel):
 
 PLAN_SYSTEM = """You plan the next actions of a git + GitHub agent that helps two collaborators sync research.
 Choose actions in order from the allowed kinds. Plan `reconcile` before `open_pr`, and `push` before `open_pr`.
-Plan merge_pr only if snapshot.pr.consent == 'approved'. Never plan force pushes. Set done=true when the goal is already met."""
+Plan merge_pr only if snapshot.pr.consent == 'approved'. Never plan force pushes.
+Set done=true only when actions is empty and there is truly nothing left to do; a non-empty actions list is always executed,
+whatever done says, so don't set done=true to mean "these are the last actions" - leave it false while actions still run.
+snapshot.pr.new_comments (if any) are plain-text comments the collaborator just left on the open PR, not yet acted on -
+read and address each one (revise a claim then commit, answer with comment_pr, or note disagreement) before treating the
+PR as settled; a review's formal approve/request-changes state is snapshot.pr.consent, separate from these comments."""
 REFLECT_SYSTEM = """Compare before/after snapshots and the executed entries. goal_met=true only if the goal now holds.
 lesson: one sentence a future run should remember (empty if nothing)."""
 
@@ -60,10 +65,17 @@ def sense(ctx: Ctx) -> Snapshot:
     rng = f"{seen[0]}..origin/{theirs}" if seen else f"origin/{cfg.main}..origin/{theirs}"
     index_branches(ctx, [branch, cfg.main, theirs])
     ahead, behind = (int(n) for n in repo.git.rev_list("--left-right", "--count", f"{branch}...origin/{cfg.main}").split())
+    pr = ctx.gh.pr_for_branch(branch)
+    if pr is not None:
+        cutoff = seen_pr_comment_cutoff(ctx.db, pr.number)
+        new = ctx.gh.pr_comments(pr.number, since=cutoff)
+        if new:
+            record_seen_pr_comments(ctx.db, pr.number, new[-1].created_at)
+        pr = pr.model_copy(update={"new_comments": new})
     return Snapshot(
         branch=branch, ahead=ahead, behind=behind, dirty_paths=dirty_paths(repo),
         collaborator_new_commits=[c.summary for c in repo.iter_commits(rng)],
-        pr=ctx.gh.pr_for_branch(branch),
+        pr=pr,
     )
 
 
@@ -132,7 +144,7 @@ def run_loop(ctx: Ctx, goal: str, confirm: Callable[[Action, Ctx], bool], max_st
             {"goal": goal, "snapshot": snap.model_dump(), "journal": [e.model_dump() for e in journal[-5:]]},
             Plan,
         )
-        if plan.done or not plan.actions:
+        if not plan.actions:  # `done` alone never skips a batch of actions - a model may set both on its final round
             break
         entries: list[Entry] = []
         for action in plan.actions:

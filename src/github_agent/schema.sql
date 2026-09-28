@@ -44,3 +44,8 @@ CREATE TABLE IF NOT EXISTS journal (
   observation TEXT NOT NULL,
   lesson      TEXT NOT NULL DEFAULT ''
 );
+
+CREATE TABLE IF NOT EXISTS seen_pr_comments (
+  pr_number    INTEGER PRIMARY KEY,
+  last_seen_at TEXT NOT NULL
+);
