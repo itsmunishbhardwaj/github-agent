@@ -1,0 +1,35 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "github-agent"
+version = "0.1.0"
+description = "GitHub agent for two-person research: git does the sync, Claude does the sensing"
+requires-python = ">=3.11"
+dependencies = [
+  "anthropic",
+  "pydantic>=2",
+  "typer",
+  "GitPython",
+  "PyGithub",
+  "pathspec",
+  "python-dotenv",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "ruff"]
+
+[project.scripts]
+github-agent = "github_agent.cli:app"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/github_agent"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["live: calls the real Claude API (needs ANTHROPIC_API_KEY)"]
+addopts = "-m 'not live'"
+
+[tool.ruff]
+line-length = 120
